@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "718267597069",
+    "project_id": "velovibe-3922e",
+    "storage_bucket": "velovibe-3922e.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:718267597069:android:bd56880c84b74e338a3044",
+        "android_client_info": {
+          "package_name": "com.facebook.react.devsupport"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDP9dSjnQ4VHY2SRH2HP9KdMWqgv9a4OUE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
