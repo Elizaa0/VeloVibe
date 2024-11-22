@@ -1,26 +1,31 @@
 import React, { useState } from 'react';
-import { View, TextInput, Button, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { useNavigation } from '@react-navigation/native';
 
-const LoginScreen = ({ navigation }) => {
+const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+  const navigation = useNavigation();
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     const auth = getAuth();
-    signInWithEmailAndPassword(auth, email, password)
-      .then(() => {
-        console.log('Zalogowano użytkownika!');
-        navigation.navigate('Home');
-      })
-      .catch(error => {
-        console.error(error);
-      });
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      console.log('Zalogowano pomyślnie!');
+      navigation.navigate('Main', {
+        screen: 'Strona główna',}); 
+    } catch (err) {
+      setError(err.message); 
+      console.error('Błąd logowania:', err);
+    }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Zaloguj się</Text>
+      <Text style={styles.title}>Logowanie</Text>
+      {error && <Text style={styles.error}>{error}</Text>}
       <TextInput
         placeholder="Adres email"
         value={email}
@@ -59,6 +64,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: 'center',
     color: '#333',
+  },
+  error: {
+    color: 'red',
+    marginBottom: 15,
+    textAlign: 'center',
   },
   input: {
     height: 50,

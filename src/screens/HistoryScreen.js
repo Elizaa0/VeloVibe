@@ -1,90 +1,79 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
-import { db, auth } from '../../firebaseConfig';
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, StyleSheet } from 'react-native';
+import MapView, { Polyline } from 'react-native-maps';
+import { collection, query, orderBy, getDocs, where } from 'firebase/firestore';
+import { auth, db } from '../../firebaseConfig';
 
-export default function HistoryScreen() {
-  const [trainings, setTrainings] = useState([]); 
-  const hasFetchedTrainings = useRef(false); 
+const HistoryScreen = () => {
+  const [trainings, setTrainings] = useState([]);
 
-  // Listener stanu autoryzacji
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, user => {
-      if (user && !hasFetchedTrainings.current) {
-        fetchTrainings(); 
-        hasFetchedTrainings.current = true; 
-      } else if (!user) {
-        setTrainings([]); 
-        hasFetchedTrainings.current = false; 
-      }
-    });
+  const fetchUserTrainings = async () => {
+    const userId = auth.currentUser?.uid;
+    if (!userId) return;
 
-    return () => unsubscribe(); 
-  }, []);
-
-  // Funkcja pobierająca treningi z Firestore
-  const fetchTrainings = async () => {
     try {
-      const q = query(collection(db, 'trainings'), orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
-      const trainingList = querySnapshot.docs.map(doc => ({
+      const q = query(
+        collection(db, 'trainings'),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc')
+      );
+      const snapshot = await getDocs(q);
+      const trainingList = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate(),
       }));
-      setTrainings(trainingList); 
+      setTrainings(trainingList);
     } catch (error) {
-      console.error('Błąd podczas pobierania treningów: ', error);
+      console.error('Błąd podczas pobierania treningów:', error);
     }
   };
 
-  // Funkcja renderująca każdy element listy treningów
+  useEffect(() => {
+    fetchUserTrainings();
+  }, []);
+
   const renderItem = ({ item }) => (
-    <View style={styles.trainingItem}>
-      <Text style={styles.text}>Trening: {item.name}</Text>
-      <Text style={styles.text}>Data: {item.createdAt?.toDate().toLocaleDateString()}</Text>
-      <Text style={styles.text}>Czas: {item.time}s</Text>
-      <Text style={styles.text}>Dystans: {item.distance} km</Text>
+    <View style={styles.item}>
+      <Text>Data: {item.createdAt?.toLocaleString()}</Text>
+      <Text>Czas: {item.elapsedTime || 0} sekundy</Text>
+      <Text>Dystans: {item.distance?.toFixed(2) || 0} km</Text>
+      {item.route && item.route.length > 0 && (
+        <MapView
+          style={styles.map}
+          initialRegion={{
+            latitude: item.route[0].latitude,
+            longitude: item.route[0].longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          }}
+          scrollEnabled={false}
+          zoomEnabled={false}
+        >
+          <Polyline coordinates={item.route} strokeColor="#FF0000" strokeWidth={3} />
+        </MapView>
+      )}
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Historia Twoich Treningów</Text>
-      {trainings.length > 0 ? (
-        <FlatList
-          data={trainings}
-          renderItem={renderItem}
-          keyExtractor={item => item.id}
-        />
-      ) : (
-        <Text style={styles.text}>Brak zapisanych treningów</Text>
-      )}
+      <Text style={styles.header}>Twoja Historia Treningów</Text>
+      <FlatList
+        data={trainings}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        ListEmptyComponent={<Text>Brak zapisanych treningów.</Text>}
+      />
     </View>
   );
-}
+};
 
-// Style
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: '#9FFB88',
-  },
-  header: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  trainingItem: {
-    padding: 15,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  text: {
-    fontSize: 18,
-    color: '#000',
-  },
+  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
+  header: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginVertical: 16 },
+  item: { marginBottom: 16, backgroundColor: '#f9f9f9', borderRadius: 8, padding: 16 },
+  map: { height: 150, marginTop: 10, borderRadius: 8 },
 });
+
+export default HistoryScreen;

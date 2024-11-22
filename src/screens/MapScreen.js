@@ -1,45 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
-import { getFirestore, collection, getDocs } from 'firebase/firestore';
-import { db } from '../../firebaseConfig';
+import React, { useState, useEffect } from "react";
+import { View, FlatList, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../../firebaseConfig";
+import { useNavigation } from "@react-navigation/native";
 
 const MapScreen = () => {
-  const [routes, setRoutes] = useState([
-    {
-      id: '1',
-      name: 'Trasa wokół Zalewu Kieleckiego',
-      distance: 15,
-      latitude: 50.8753,
-      longitude: 20.6232,
-    },
-    {
-      id: '2',
-      name: 'Trasa przez Górę Telegraf',
-      distance: 10,
-      latitude: 50.8454,
-      longitude: 20.6486,
-    },
-    {
-      id: '3',
-      name: 'Trasa do Rezerwatu Kadzielnia',
-      distance: 8,
-      latitude: 50.8626,
-      longitude: 20.6191,
-    },
-  ]);
+  const [routes, setRoutes] = useState([]);
+  const navigation = useNavigation();
 
   useEffect(() => {
     const fetchRoutes = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, 'routes'));
-        const routesList = querySnapshot.docs.map(doc => ({
+        const querySnapshot = await getDocs(collection(db, "routes"));
+        const fetchedRoutes = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
-        setRoutes(prevRoutes => [...prevRoutes, ...routesList]);
+        setRoutes(fetchedRoutes);
       } catch (error) {
-        console.error('Error fetching routes: ', error);
+        console.error("Błąd podczas pobierania tras: ", error);
       }
     };
 
@@ -47,35 +26,30 @@ const MapScreen = () => {
   }, []);
 
   const renderRouteItem = ({ item }) => (
-    <TouchableOpacity style={styles.routeItem}>
+    <TouchableOpacity
+      style={styles.routeItem}
+      onPress={() => navigation.navigate("RouteDetails", { selectedRoute: item })}
+    >
       <Text style={styles.routeName}>{item.name}</Text>
-      <Text style={styles.routeDistance}>Dystans: {item.distance} km</Text>
-      <MapView
-        style={styles.miniMap}
-        initialRegion={{
-          latitude: item.latitude,
-          longitude: item.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }}
-        scrollEnabled={false}
-        zoomEnabled={false}
-        pitchEnabled={false}
-        rotateEnabled={false}
-      >
-        <Marker coordinate={{ latitude: item.latitude, longitude: item.longitude }} />
-      </MapView>
+      <Text style={styles.routeDistance}>Dystans: {(item.distance / 1000).toFixed(2)} km</Text>
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Lista tras rowerowych</Text>
+      <Text style={styles.header}>Trasy</Text>
       <FlatList
         data={routes}
+        keyExtractor={(item) => item.id}
         renderItem={renderRouteItem}
-        keyExtractor={item => item.id}
+        ListEmptyComponent={<Text style={styles.noRoutes}>Brak dostępnych tras.</Text>}
       />
+      <TouchableOpacity
+        style={styles.addRouteButton}
+        onPress={() => navigation.navigate("AddRoute")}
+      >
+        <Text style={styles.addRouteText}>Dodaj nową trasę</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -83,31 +57,50 @@ const MapScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#9FFB88', 
-    padding: 10,
+    padding: 16,
+    backgroundColor: "#F0F8FF",
   },
   header: {
     fontSize: 24,
-    textAlign: 'center',
-    margin: 10,
+    fontWeight: "bold",
+    marginBottom: 16,
+    textAlign: "center",
+    color: "#333",
   },
   routeItem: {
-    backgroundColor: '#fff',
-    padding: 10,
+    backgroundColor: "#FFF",
+    padding: 15,
     borderRadius: 8,
     marginBottom: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
   },
   routeName: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   routeDistance: {
     fontSize: 16,
-    color: '#555',
+    color: "#555",
   },
-  miniMap: {
-    height: 100,
-    marginTop: 10,
+  noRoutes: {
+    textAlign: "center",
+    color: "#555",
+    fontSize: 16,
+  },
+  addRouteButton: {
+    backgroundColor: "#9FFB88",
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 20,
+  },
+  addRouteText: {
+    fontSize: 18,
+    color: "#333",
+    fontWeight: "bold",
   },
 });
 

@@ -1,8 +1,7 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
+import { getFirestore, setLogLevel } from 'firebase/firestore';
 
-// Konfiguracja Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyChjXbNq7enfZpeJhP7zlAPAJy1dtmwPzk",
   authDomain: "velovibe-3922e.firebaseapp.com",
@@ -13,12 +12,9 @@ const firebaseConfig = {
   measurementId: "G-953FXJX7GS"
 };
 
-// Inicjalizacja Firebase
-const app = initializeApp(firebaseConfig);
-
-// Inicjalizacja Firestore i Auth
-const db = getFirestore(app);
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
+const db = getFirestore(app);
+setLogLevel('error');
 
-// Eksport instancji
-export { db, auth };
+export { auth, db };
