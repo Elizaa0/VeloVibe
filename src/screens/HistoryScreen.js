@@ -70,10 +70,28 @@ const HistoryScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
-  header: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginVertical: 16 },
-  item: { marginBottom: 16, backgroundColor: '#f9f9f9', borderRadius: 8, padding: 16 },
-  map: { height: 150, marginTop: 10, borderRadius: 8 },
+  container: { 
+    flex: 1, 
+    padding: 16, 
+    backgroundColor: '#fff' 
+  },
+  header: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    textAlign: 'center', 
+    marginVertical: 16 
+  },
+  item: { 
+    marginBottom: 16, 
+    backgroundColor: '#f9f9f9', 
+    borderRadius: 8, 
+    padding: 16 
+  },
+  map: { 
+    height: 150, 
+    marginTop: 10, 
+    borderRadius: 8 
+  },
 });
 
 export default HistoryScreen;

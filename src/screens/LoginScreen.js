@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { useNavigation } from '@react-navigation/native';
 
@@ -14,8 +14,13 @@ const LoginScreen = () => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       console.log('Zalogowano pomyślnie!');
+      if (!auth.currentUser) {
+        console.error("Użytkownik niezalogowany.");
+      }
+      
       navigation.navigate('Main', {
-        screen: 'Strona główna',}); 
+        screen: 'Strona główna',
+      }); 
     } catch (err) {
       setError(err.message); 
       console.error('Błąd logowania:', err);
@@ -24,7 +29,10 @@ const LoginScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Logowanie</Text>
+      <Image
+       source={require('../assets/logo.png')}
+        style={styles.logo}
+      />
       {error && <Text style={styles.error}>{error}</Text>}
       <TextInput
         placeholder="Adres email"
@@ -58,12 +66,11 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#F0F8FF',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-    color: '#333',
+  logo: {
+    width: 300, 
+    height: 150, 
+    alignSelf: 'center', 
+    marginBottom: 20, 
   },
   error: {
     color: 'red',

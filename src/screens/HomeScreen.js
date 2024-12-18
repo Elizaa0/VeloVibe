@@ -1,58 +1,65 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, FlatList, StyleSheet } from "react-native";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
-import { db, auth } from "../../firebaseConfig";
+import React, { useEffect, useState } from "react";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
+import { collection, getDocs, query, where, getDoc, doc } from "firebase/firestore"; 
+import { getAuth } from "firebase/auth";
+import { db } from "../../firebaseConfig";
+import MapView, { Polyline } from "react-native-maps";
 
 const HomeScreen = () => {
   const [friendTrainings, setFriendTrainings] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [selectedTrainingId, setSelectedTrainingId] = useState(null);
+  const auth = getAuth();
+  const user = auth.currentUser;
 
-  const fetchFriendTrainings = async () => {
-    try {
-      const userId = auth.currentUser?.uid;
-      if (!userId) {
-        console.error("Użytkownik niezalogowany.");
-        return;
+  useEffect(() => {
+    const fetchFriendTrainings = async () => {
+      try {
+        if (!user) return;
+
+        const friendsDocRef = doc(db, "friends", user.uid); 
+        const friendsDoc = await getDoc(friendsDocRef);
+
+        if (!friendsDoc.exists()) {
+          console.log("Brak znajomych.");
+          return;
+        }
+
+        const friendIds = friendsDoc.data()?.friendList || [];
+
+        if (friendIds.length === 0) {
+          console.log("Brak treningów znajomych.");
+          return;
+        }
+
+        const trainingsQuery = query(
+          collection(db, "trainings"),
+          where("userId", "in", friendIds)
+        );
+        const snapshot = await getDocs(trainingsQuery);
+
+        const fetchedTrainings = await Promise.all(
+          snapshot.docs.map(async (docSnap) => {
+            const training = { id: docSnap.id, ...docSnap.data() };
+            if (!training.userName) {
+              const userDocRef = doc(db, "users", training.userId);
+              const userDoc = await getDoc(userDocRef);
+              training.userName = userDoc.exists() ? userDoc.data()?.name || "Nieznany" : "Nieznany";
+            }
+            return training;
+          })
+        );
+
+        setFriendTrainings(fetchedTrainings);
+      } catch (error) {
+        console.error("Błąd pobierania treningów znajomych:", error.message);
       }
+    };
 
-      // Pobierz listę znajomych
-      const friendsRef = doc(db, "friends", userId);
-      const friendsDoc = await getDoc(friendsRef);
+    fetchFriendTrainings();
+  }, [user]);
 
-      if (!friendsDoc.exists() || !friendsDoc.data()?.friendList?.length) {
-        console.log("Brak znajomych.");
-        setFriendTrainings([]);
-        setIsLoading(false);
-        return;
-      }
-
-      const friendIds = friendsDoc.data().friendList;
-
-      // Pobierz treningi znajomych
-      const trainingsQuery = query(
-        collection(db, "trainings"),
-        where("userId", "in", friendIds)
-      );
-      const trainingsSnapshot = await getDocs(trainingsQuery);
-
-      const fetchedTrainings = await Promise.all(
-        trainingsSnapshot.docs.map(async (trainingDoc) => {
-          const training = trainingDoc.data();
-          const friendDoc = await getDoc(doc(db, "users", training.userId));
-
-          return {
-            ...training,
-            friendName: friendDoc.exists() ? friendDoc.data()?.name : "Nieznajomy",
-          };
-        })
-      );
-
-      setFriendTrainings(fetchedTrainings);
-      setIsLoading(false);
-    } catch (error) {
-      console.error("Błąd pobierania treningów znajomych:", error);
-      setIsLoading(false);
-    }
+  const handleShowRoute = (trainingId) => {
+    setSelectedTrainingId((prevId) => (prevId === trainingId ? null : trainingId));
   };
 
   const formatElapsedTime = (elapsedTime) => {
@@ -64,31 +71,57 @@ const HomeScreen = () => {
       .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   };
 
-  useEffect(() => {
-    fetchFriendTrainings();
-  }, []);
-
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Treningi znajomych</Text>
-      {isLoading ? (
-        <Text style={styles.loadingText}>Ładowanie...</Text>
-      ) : friendTrainings.length > 0 ? (
-        <FlatList
-          data={friendTrainings}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.trainingItem}>
-              <Text style={styles.name}>{item.friendName}</Text>
-              <Text>Dystans: {(item.distance / 1000).toFixed(3)} km</Text>
-              <Text>Czas: {formatElapsedTime(item.elapsedTime)}</Text>
-              <Text>Data: {item.createdAt?.toDate().toLocaleString() || "Brak danych"}</Text>
-            </View>
-          )}
-        />
-      ) : (
-        <Text style={styles.noTrainings}>Brak treningów znajomych.</Text>
-      )}
+      <Text style={styles.header}>Treningi Twoich Znajomych</Text>
+      <FlatList
+        data={friendTrainings}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View style={styles.trainingItem}>
+            <Text style={styles.trainingInfo}>
+              Użytkownik: {item.userName || "Nieznany"}
+            </Text>
+            <Text style={styles.trainingInfo}>
+              Dystans: {(item.distance / 1000).toFixed(2)} km
+            </Text>
+            <Text style={styles.trainingInfo}>
+              Czas: {formatElapsedTime(item.elapsedTime)}
+            </Text>
+            <Text style={styles.trainingInfo}>
+              Data: {item.createdAt?.toDate().toLocaleString() || "Brak danych"}
+            </Text>
+            <TouchableOpacity
+              style={styles.showRouteButton}
+              onPress={() => handleShowRoute(item.id)}
+            >
+              <Text style={styles.showRouteButtonText}>
+                {selectedTrainingId === item.id ? "Ukryj trasę" : "Pokaż trasę"}
+              </Text>
+            </TouchableOpacity>
+            {selectedTrainingId === item.id && item.route && item.route.length > 0 && (
+              <View style={styles.mapContainer}>
+                <MapView
+                  style={styles.map}
+                  initialRegion={{
+                    latitude: item.route[0]?.latitude || 0,
+                    longitude: item.route[0]?.longitude || 0,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  }}
+                >
+                  <Polyline
+                    coordinates={item.route}
+                    strokeColor="#FF0000"
+                    strokeWidth={3}
+                  />
+                </MapView>
+              </View>
+            )}
+          </View>
+        )}
+        ListEmptyComponent={<Text>Brak treningów znajomych.</Text>}
+      />
     </View>
   );
 };
@@ -97,12 +130,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F0F8FF",
-    padding: 16,
+    padding: 20,
   },
   header: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "bold",
-    marginBottom: 16,
+    marginBottom: 20,
     color: "#333",
   },
   trainingItem: {
@@ -110,24 +143,30 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     marginBottom: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
   },
-  name: {
-    fontSize: 18,
+  trainingInfo: {
+    fontSize: 16,
+    marginBottom: 5,
+  },
+  showRouteButton: {
+    marginTop: 5,
+    backgroundColor: "#9FFB88",
+    padding: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  showRouteButtonText: {
+    color: "#FFF",
     fontWeight: "bold",
   },
-  loadingText: {
-    textAlign: "center",
-    color: "#555",
-    fontSize: 16,
+  mapContainer: {
+    marginTop: 10,
+    height: 200,
+    borderRadius: 8,
+    overflow: "hidden",
   },
-  noTrainings: {
-    textAlign: "center",
-    color: "#555",
-    fontSize: 16,
+  map: {
+    flex: 1,
   },
 });
 

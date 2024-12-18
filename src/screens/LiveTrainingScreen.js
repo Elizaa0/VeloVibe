@@ -92,7 +92,7 @@ const LiveTrainingScreen = () => {
       }
 
       await addDoc(collection(db, "trainings"), {
-        userId, // Przypisanie do użytkownika
+        userId, 
         route,
         elapsedTime,
         distance,

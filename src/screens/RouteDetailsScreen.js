@@ -1,71 +1,78 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import MapView, { Polyline } from "react-native-maps";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../../firebaseConfig";
+import { useRoute } from "@react-navigation/native";
 
-const RouteDetailsScreen = ({ route }) => {
-  const { selectedRoute } = route.params;
+const RouteDetailsScreen = () => {
+  const [routeDetails, setRouteDetails] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  if (!selectedRoute || !selectedRoute.route) {
-    return (
-      <View style={styles.container}>
-        <Text>Błąd: Nie można załadować trasy. Sprawdź dane.</Text>
-      </View>
-    );
-  }
+  const route = useRoute();
+  const { routeId } = route.params;
 
-  const calculateDistance = (route) => {
-    if (!route || route.length < 2) return 0;
-    let totalDistance = 0;
-    for (let i = 0; i < route.length - 1; i++) {
-      const pointA = route[i];
-      const pointB = route[i + 1];
-      totalDistance += haversineDistance(
-        pointA.latitude,
-        pointA.longitude,
-        pointB.latitude,
-        pointB.longitude
-      );
-    }
-    return totalDistance;
-  };
+  useEffect(() => {
+    const fetchRouteDetails = async () => {
+      try {
+        if (!routeId) {
+          throw new Error("Brak ID trasy.");
+        }
 
-  const haversineDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371000;
-    const dLat = degToRad(lat2 - lat1);
-    const dLon = degToRad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(degToRad(lat1)) * Math.cos(degToRad(lat2)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
+        const routeDoc = await getDoc(doc(db, "routes", routeId));
+        if (routeDoc.exists()) {
+          setRouteDetails(routeDoc.data());
+        } else {
+          throw new Error("Nie znaleziono trasy o podanym ID.");
+        }
+      } catch (err) {
+        console.error("Błąd pobierania szczegółów trasy:", err.message);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const degToRad = (deg) => deg * (Math.PI / 180);
+    fetchRouteDetails();
+  }, [routeId]);
 
   return (
     <View style={styles.container}>
-      <MapView
-        style={styles.map}
-        initialRegion={{
-          latitude: selectedRoute.route[0].latitude,
-          longitude: selectedRoute.route[0].longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }}
-      >
-        <Polyline
-          coordinates={selectedRoute.route}
-          strokeColor="#FF0000"
-          strokeWidth={4}
-        />
-      </MapView>
-      <View style={styles.info}>
-        <Text style={styles.name}>{selectedRoute.name}</Text>
-        <Text style={styles.distance}>
-          Dystans: {(calculateDistance(selectedRoute.route) / 1000).toFixed(2)} km
-        </Text>
-      </View>
+      {loading ? (
+        <ActivityIndicator size="large" color="#9FFB88" />
+      ) : error ? (
+        <Text style={styles.errorText}>{error}</Text>
+      ) : routeDetails ? (
+        <>
+          <Text style={styles.title}>{routeDetails.name}</Text>
+          <Text style={styles.distance}>
+            Dystans: {(routeDetails.distance / 1000).toFixed(2)} km
+          </Text>
+
+          {routeDetails.coordinates && routeDetails.coordinates.length > 0 ? (
+            <MapView
+              style={styles.map}
+              initialRegion={{
+                latitude: routeDetails.coordinates[0]?.latitude || 0,
+                longitude: routeDetails.coordinates[0]?.longitude || 0,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+              }}
+            >
+              <Polyline
+                coordinates={routeDetails.coordinates}
+                strokeColor="#FF0000"
+                strokeWidth={4}
+              />
+            </MapView>
+          ) : (
+            <Text style={styles.noRouteText}>Brak danych o trasie.</Text>
+          )}
+        </>
+      ) : (
+        <Text style={styles.errorText}>Nie znaleziono szczegółów trasy.</Text>
+      )}
     </View>
   );
 };
@@ -74,24 +81,37 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F0F8FF",
+    padding: 20,
   },
-  map: {
-    flex: 1,
-  },
-  info: {
-    padding: 10,
-    backgroundColor: "#FFF",
-    borderTopWidth: 1,
-    borderColor: "#CCC",
-  },
-  name: {
-    fontSize: 18,
+  title: {
+    fontSize: 24,
     fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 10,
     color: "#333",
   },
   distance: {
-    fontSize: 16,
+    fontSize: 18,
+    textAlign: "center",
+    marginBottom: 10,
     color: "#555",
+  },
+  map: {
+    flex: 1,
+    marginTop: 10,
+    borderRadius: 10,
+  },
+  noRouteText: {
+    fontSize: 16,
+    textAlign: "center",
+    color: "#555",
+    marginTop: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    color: "red",
+    textAlign: "center",
+    marginTop: 20,
   },
 });
 

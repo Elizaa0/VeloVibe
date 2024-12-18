@@ -1,21 +1,16 @@
 import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-} from "react-native";
+import {View, Text, FlatList, TouchableOpacity, StyleSheet, Alert,} from "react-native";
 import { getAuth, signOut } from "firebase/auth";
 import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import { useNavigation } from "@react-navigation/native";
+import MapView, { Polyline } from "react-native-maps";
 
 const ProfileScreen = () => {
   const [userName, setUserName] = useState("");
   const [trainings, setTrainings] = useState([]);
   const [friends, setFriends] = useState([]);
+  const [selectedTrainingId, setSelectedTrainingId] = useState(null);
   const navigation = useNavigation();
   const auth = getAuth();
   const user = auth.currentUser;
@@ -27,14 +22,12 @@ const ProfileScreen = () => {
           throw new Error("Użytkownik niezalogowany.");
         }
 
-        // Pobierz dane użytkownika
         const userDocRef = doc(db, "users", user.uid);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
           setUserName(userDoc.data()?.name || "Użytkownik");
         }
 
-        // Pobierz treningi użytkownika
         const trainingsQuery = query(
           collection(db, "trainings"),
           where("userId", "==", user.uid)
@@ -46,7 +39,6 @@ const ProfileScreen = () => {
         }));
         setTrainings(fetchedTrainings);
 
-        // Pobierz znajomych
         const friendsDocRef = doc(db, "friends", user.uid);
         const friendsDoc = await getDoc(friendsDocRef);
         if (friendsDoc.exists()) {
@@ -77,8 +69,12 @@ const ProfileScreen = () => {
       .catch((error) => console.error("Błąd podczas wylogowywania:", error));
   };
 
-  const navigateToAddFriend = () => {
-    navigation.navigate("AddFriend");
+  const handleShowRoute = (trainingId) => {
+    setSelectedTrainingId((prevId) => (prevId === trainingId ? null : trainingId));
+  };
+
+  const handleFriendPress = (friendId, name) => {
+    navigation.navigate("FriendProfileScreen", { friendId, name });
   };
 
   const formatElapsedTime = (elapsedTime) => {
@@ -97,7 +93,6 @@ const ProfileScreen = () => {
         <Text style={styles.logoutButtonText}>Wyloguj się</Text>
       </TouchableOpacity>
 
-      {/* Sekcja treningów */}
       <Text style={styles.sectionTitle}>Twoje treningi:</Text>
       <FlatList
         data={trainings}
@@ -113,26 +108,53 @@ const ProfileScreen = () => {
             <Text style={styles.trainingInfo}>
               Data: {item.createdAt?.toDate().toLocaleString() || "Brak danych"}
             </Text>
+            <TouchableOpacity
+              style={styles.showRouteButton}
+              onPress={() => handleShowRoute(item.id)}
+            >
+              <Text style={styles.showRouteButtonText}>
+                {selectedTrainingId === item.id ? "Ukryj trasę" : "Pokaż trasę"}
+              </Text>
+            </TouchableOpacity>
+            {selectedTrainingId === item.id && item.route && item.route.length > 0 && (
+              <View style={styles.mapContainer}>
+                <MapView
+                  style={styles.map}
+                  initialRegion={{
+                    latitude: item.route[0]?.latitude,
+                    longitude: item.route[0]?.longitude,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  }}
+                >
+                  <Polyline
+                    coordinates={item.route}
+                    strokeColor="#FF0000"
+                    strokeWidth={3}
+                  />
+                </MapView>
+              </View>
+            )}
           </View>
         )}
         ListEmptyComponent={<Text>Brak zapisanych treningów.</Text>}
       />
 
-      {/* Sekcja znajomych */}
+      
       <Text style={styles.sectionTitle}>Twoi znajomi:</Text>
       <FlatList
         data={friends}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <View style={styles.friendItem}>
+          <TouchableOpacity
+            style={styles.friendItem}
+            onPress={() => handleFriendPress(item.id, item.name)}
+          >
             <Text style={styles.friendName}>{item.name}</Text>
-          </View>
+          </TouchableOpacity>
         )}
         ListEmptyComponent={<Text>Brak znajomych.</Text>}
       />
-      <TouchableOpacity style={styles.addFriendButton} onPress={navigateToAddFriend}>
-        <Text style={styles.addFriendButtonText}>Dodaj znajomego</Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -140,8 +162,8 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
     backgroundColor: "#F0F8FF",
+    padding: 20,
   },
   welcomeText: {
     fontSize: 24,
@@ -152,8 +174,7 @@ const styles = StyleSheet.create({
   logoutButton: {
     alignSelf: "flex-end",
     backgroundColor: "#FF5C5C",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    padding: 10,
     borderRadius: 8,
   },
   logoutButtonText: {
@@ -164,9 +185,37 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     marginVertical: 10,
-    color: "#555",
   },
   trainingItem: {
+    backgroundColor: "#FFF",
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  trainingInfo: {
+    fontSize: 16,
+  },
+  showRouteButton: {
+    marginTop: 5,
+    backgroundColor: "#9FFB88",
+    padding: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  showRouteButtonText: {
+    color: "#FFF",
+    fontWeight: "bold",
+  },
+  mapContainer: {
+    marginTop: 10,
+    height: 200,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  map: {
+    flex: 1,
+  },
+  friendItem: {
     backgroundColor: "#FFF",
     padding: 15,
     borderRadius: 8,
@@ -176,35 +225,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
   },
-  trainingInfo: {
-    fontSize: 16,
-    color: "#555",
-  },
-  friendItem: {
-    backgroundColor: "#FFF",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-  },
   friendName: {
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  addFriendButton: {
-    backgroundColor: "#9FFB88",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 15,
-  },
-  addFriendButtonText: {
-    color: "#FFF",
     fontWeight: "bold",
   },
 });
