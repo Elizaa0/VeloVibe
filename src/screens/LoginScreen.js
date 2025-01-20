@@ -30,7 +30,7 @@ const LoginScreen = () => {
   return (
     <View style={styles.container}>
       <Image
-       source={require('../assets/logo.png')}
+       source={require('')}
         style={styles.logo}
       />
       {error && <Text style={styles.error}>{error}</Text>}

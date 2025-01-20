@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from "react";
-import {View, Text, FlatList, TouchableOpacity, StyleSheet, Alert,} from "react-native";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from "react-native";
 import { getAuth, signOut } from "firebase/auth";
 import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
@@ -67,6 +74,10 @@ const ProfileScreen = () => {
     signOut(auth)
       .then(() => Alert.alert("Wylogowano pomyślnie"))
       .catch((error) => console.error("Błąd podczas wylogowywania:", error));
+  };
+
+  const handleNavigateToAddFriend = () => {
+    navigation.navigate("AddFriend");
   };
 
   const handleShowRoute = (trainingId) => {
@@ -140,7 +151,6 @@ const ProfileScreen = () => {
         ListEmptyComponent={<Text>Brak zapisanych treningów.</Text>}
       />
 
-      
       <Text style={styles.sectionTitle}>Twoi znajomi:</Text>
       <FlatList
         data={friends}
@@ -155,46 +165,43 @@ const ProfileScreen = () => {
         )}
         ListEmptyComponent={<Text>Brak znajomych.</Text>}
       />
+
+      <TouchableOpacity
+        style={styles.addFriendButton}
+        onPress={handleNavigateToAddFriend}
+      >
+        <Text style={styles.addFriendButtonText}>Dodaj znajomego</Text>
+      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F0F8FF",
-    padding: 20,
-  },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-    color: "#333",
-  },
+  container: { flex: 1, backgroundColor: "#F0F8FF", padding: 20 },
+  welcomeText: { fontSize: 24, fontWeight: "bold", marginBottom: 20, color: "#333" },
   logoutButton: {
     alignSelf: "flex-end",
     backgroundColor: "#FF5C5C",
     padding: 10,
     borderRadius: 8,
   },
-  logoutButtonText: {
-    color: "#FFF",
-    fontWeight: "bold",
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+  logoutButtonText: { color: "#FFF", fontWeight: "bold" },
+  addFriendButton: {
+    backgroundColor: "#9FFB88",
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
     marginVertical: 10,
   },
+  addFriendButtonText: { color: "#333", fontWeight: "bold", fontSize: 16 },
+  sectionTitle: { fontSize: 18, fontWeight: "bold", marginVertical: 10 },
   trainingItem: {
     backgroundColor: "#FFF",
     padding: 15,
     borderRadius: 8,
     marginBottom: 10,
   },
-  trainingInfo: {
-    fontSize: 16,
-  },
+  trainingInfo: { fontSize: 16 },
   showRouteButton: {
     marginTop: 5,
     backgroundColor: "#9FFB88",
@@ -202,19 +209,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
-  showRouteButtonText: {
-    color: "#FFF",
-    fontWeight: "bold",
-  },
+  showRouteButtonText: { color: "#FFF", fontWeight: "bold" },
   mapContainer: {
     marginTop: 10,
     height: 200,
     borderRadius: 8,
     overflow: "hidden",
   },
-  map: {
-    flex: 1,
-  },
+  map: { flex: 1 },
   friendItem: {
     backgroundColor: "#FFF",
     padding: 15,
@@ -225,10 +227,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowRadius: 4,
   },
-  friendName: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
+  friendName: { fontSize: 16, fontWeight: "bold" },
 });
 
 export default ProfileScreen;
